@@ -5,19 +5,13 @@ def funcao(x,y):
     try:
         return (-(math.sin(2*math.pi*x)**3)*(math.sin(2*math.pi*y))/((x**3)*(x+y)))
     except:
-        return 0
+        return 10000000
 
 def restricao1(x, y):
-    try:
-        return (x**2 - y + 1)
-    except:
-        return 0
+    return (x**2 - y + 1)
 
 def restricao2(x, y):
-    try:
-        return (1 - x + (y-4)**2)
-    except:
-        return 0
+    return (1 - x + (y-4)**2)
 
 def inicializacao(tam_pop, min, max):
     vi = []
@@ -148,14 +142,14 @@ def regras_factibilidade(filhos):
             else:
                 filhos_escolhidos.append(ind1)
         
-        return filhos_escolhidos
+    return filhos_escolhidos
 
 def criterio_parada(pais, melhores):
     av_pais = fitness(pais)
     pais_ordenados = [x for _, x in sorted(zip(av_pais, pais))]
 
     for i in range(len(melhores)):
-        if(funcao(pais_ordenados[0][0], pais_ordenados[0][1]) > funcao(melhores[i][0], melhores[i][1])):
+        if(funcao(pais_ordenados[0][0], pais_ordenados[0][1]) < funcao(melhores[i][0], melhores[i][1])):
             melhores[i] = pais_ordenados[0]
             return 0
 
@@ -166,46 +160,57 @@ def algoritmo_genetico():
     min = [0,0]
     max = [10,10]
 
-    tam_pop = 200
-    n_iteracoes = 50
-
-    pop = inicializacao(tam_pop, min, max)
+    tam_pop = 400
+    n_geracoes = 7
 
     pais = []
-    melhores = [[0.0,0.0]]*n_iteracoes
+    melhores = [[0.0,0.0]]*n_geracoes
 
     cp = 0
 
+    # Geração Inicial
+    pop = inicializacao(tam_pop, min, max)
+
     while True:
+        # Seleção para Cruzamento
+        for i in range(100): pais.append(selecao_torneio(pop, 2))
 
-        for i in range(100):
-            pais.append(selecao_torneio(pop, 2))
-
+        # Cruzamento (Gera o dobro de filhos se comparado ao número de pais)
         filhos = cruzamento_flat(pais)
 
+        # Mutação
         filhos_mutacao = mutacao_uniforme(filhos, min, max)
 
+        # Aplicação das Regras de Factibilidade
         pais = regras_factibilidade(filhos_mutacao)
 
+        # Observância dos critérios de parada
         c = criterio_parada(pais, melhores)
 
-        if(c==1):
-            cp += 1
-        else:
-            cp = 0
+        if(c==1): cp += 1
+        else:     cp = 0
         
-        if(cp == n_iteracoes):
+        # Finalização
+        if(cp == n_geracoes):
             av_melhores = fitness(melhores)
             melhores = [x for _, x in sorted(zip(av_melhores, melhores))]
-            for i in range(n_iteracoes):
-                if(melhores[i][0] >= 0 and melhores[i][1] >= 0):
+            for i in range(n_geracoes):
+                if(melhores[i][0] >= 0 and melhores[i][1] >= 0 and melhores[i][0] <= 10 and melhores[i][1] <= 10 and
+                    restricao1(melhores[i][0], melhores[i][1]) >= 0 and restricao2(melhores[i][0], melhores[i][1]) >= 0):
                     print("RES: ", melhores[i])
                     print(funcao(melhores[i][0], melhores[i][1]))
-                    print(i)
+                    #for melhor in melhores:
+                    #    print(melhor)
+                    print()
                     return melhores[i], funcao(melhores[i][0], melhores[i][1])
-            print(melhores)
             
-        
+            pais = []
+            melhores = [[0.0,0.0]]*n_geracoes
+
+            cp = 0
+
+            # Re-Geração Inicial
+            pop = inicializacao(tam_pop, min, max)
 
 
 if __name__ == '__main__':
