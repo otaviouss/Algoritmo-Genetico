@@ -3,7 +3,7 @@ import random
 
 def funcao(x,y):
     try:
-        return (-(math.sin(2*math.pi*x)**3)*(math.sin(2*math.pi*y))/((x**3)*(x+y)))
+        return ((-(math.sin(2*math.pi*x)**3)*(math.sin(2*math.pi*y)))/((x**3)*(x+y)))
     except:
         return 10000000
 
@@ -17,10 +17,16 @@ def inicializacao(tam_pop, min, max):
     vi = []
 
     for i in range(tam_pop):
-        vi.append([random.uniform(min[0], max[0]),random.uniform(min[1], max[1])])
+        while True:
+            x = random.uniform(min[0], max[0])
+            y = random.uniform(min[1], max[1])
+            if(restricao1(x, y) <= 0 and restricao2(x, y) <= 0): break
+
+        vi.append([x,y])
 
     return vi
 
+# Avalia o fitness de toda a população
 def fitness(pop):
     av = [[]]*len(pop)
     for i in range(len(pop)):
@@ -28,7 +34,7 @@ def fitness(pop):
     return av
 
 # Seleção para Reprodução
-def selecao_torneio(pop, t_size):
+def selecao_torneio(pop, t_size, min, max):
     pop_size = len(pop)
     contestant = [[]]*t_size
     best = pop[random.randint(0, pop_size-1)]
@@ -36,7 +42,13 @@ def selecao_torneio(pop, t_size):
     contestant = best
     for j in range(1, t_size):
         contestant = pop[random.randint(0, pop_size-1)]
-        if(funcao(contestant[0], contestant[1]) < funcao(best[0], best[1])):
+        if(funcao(contestant[0], contestant[1]) < funcao(best[0], best[1]) and 
+            restricao1(contestant[0], contestant[1]) <= 0                  and
+            restricao2(contestant[0], contestant[1]) <= 0                  and
+            restricao1(best[0], best[1]) <= 0                              and 
+            restricao2(best[0], best[1]) <= 0                              and
+            contestant[0] >= min[0] and contestant[0] <= max[0]            and
+            contestant[1] >= min[1] and contestant[1] <= max[1]):
             best = contestant
 
     return best
@@ -81,24 +93,12 @@ def cruzamento_flat(pais):
 
         filhos.append(filho)
 
-        x = ajustar_ordem(pais[i][0], pais[len(pais)-i-1][0])
-        y = ajustar_ordem(pais[i][1], pais[len(pais)-i-1][1])
-        filho = [random.uniform(x[0], x[1]), random.uniform(y[0], y[1])]
-
-        filhos.append(filho)
-
-        x = ajustar_ordem(pais[i][0], pais[len(pais)-i-1][0])
-        y = ajustar_ordem(pais[i][1], pais[len(pais)-i-1][1])
-        filho = [random.uniform(x[0], x[1]), random.uniform(y[0], y[1])]
-
-        filhos.append(filho)
-
     return filhos
 
 def mutacao_uniforme(pop, min, max):
-    sigma = 0.5
+    sigma = 0.2
     for i in range(len(pop)):
-        if(random.randint(1,10)==1):
+        if(random.randint(1,5)==1):
             pop[i][0] += sigma*(max[0]-min[0])*(2*random.uniform(0,1)-1)
             pop[i][1] += sigma*(max[1]-min[1])*(2*random.uniform(0,1)-1)
     return pop
@@ -144,14 +144,21 @@ def regras_factibilidade(filhos):
         
     return filhos_escolhidos
 
-def criterio_parada(pais, melhores):
+def criterio_parada(pais, melhores, min, max):
     av_pais = fitness(pais)
     pais_ordenados = [x for _, x in sorted(zip(av_pais, pais))]
 
     for i in range(len(melhores)):
-        if(funcao(pais_ordenados[0][0], pais_ordenados[0][1]) < funcao(melhores[i][0], melhores[i][1])):
-            melhores[i] = pais_ordenados[0]
-            return 0
+        for j in range(len(pais_ordenados)):
+            if(funcao(pais_ordenados[j][0], pais_ordenados[j][1]) < funcao(melhores[i][0], melhores[i][1]) and
+                restricao1(pais_ordenados[j][0], pais_ordenados[j][1])  <= 0                               and
+                restricao2(pais_ordenados[j][0], pais_ordenados[j][1])  <= 0                               and
+                pais_ordenados[j][0] >= min[0] and pais_ordenados[j][0] <= max[0]                          and
+                pais_ordenados[j][1] >= min[1] and pais_ordenados[j][1] <= max[1]):
+                    melhores[i] = pais_ordenados[j]
+                    av_melhores = fitness(melhores.copy())
+                    melhores = [x for _, x in sorted(zip(av_melhores, melhores))]
+                    break
 
     return 1
 
@@ -160,11 +167,12 @@ def algoritmo_genetico():
     min = [0,0]
     max = [10,10]
 
-    tam_pop = 400
-    n_geracoes = 7
+    tam_pop = 200
+    n_geracoes = 100
 
     pais = []
     melhores = [[0.0,0.0]]*n_geracoes
+    melhor = []
 
     cp = 0
 
@@ -173,45 +181,28 @@ def algoritmo_genetico():
 
     while True:
         # Seleção para Cruzamento
-        for i in range(100): pais.append(selecao_torneio(pop, 2))
+        for i in range(tam_pop): pais.append(selecao_torneio(pop, 3, min, max))
 
         # Cruzamento (Gera o dobro de filhos se comparado ao número de pais)
-        filhos = cruzamento_flat(pais)
+        filhos = cruzamento_flat(pais.copy())
 
         # Mutação
-        filhos_mutacao = mutacao_uniforme(filhos, min, max)
+        filhos_mutacao = mutacao_uniforme(filhos.copy(), min, max)
 
         # Aplicação das Regras de Factibilidade
-        pais = regras_factibilidade(filhos_mutacao)
+        pais = regras_factibilidade(filhos_mutacao.copy())
 
         # Observância dos critérios de parada
-        c = criterio_parada(pais, melhores)
+        cp += criterio_parada(pais, melhores, min, max)
 
-        if(c==1): cp += 1
-        else:     cp = 0
-        
+        if(melhor == [] or funcao(melhor[0], melhor[1]) < funcao(melhores[0][0], melhores[0][1])):
+            melhor = melhores[0]
+
         # Finalização
         if(cp == n_geracoes):
-            av_melhores = fitness(melhores)
-            melhores = [x for _, x in sorted(zip(av_melhores, melhores))]
-            for i in range(n_geracoes):
-                if(melhores[i][0] >= 0 and melhores[i][1] >= 0 and melhores[i][0] <= 10 and melhores[i][1] <= 10 and
-                    restricao1(melhores[i][0], melhores[i][1]) >= 0 and restricao2(melhores[i][0], melhores[i][1]) >= 0):
-                    print("RES: ", melhores[i])
-                    print(funcao(melhores[i][0], melhores[i][1]))
-                    #for melhor in melhores:
-                    #    print(melhor)
-                    print()
-                    return melhores[i], funcao(melhores[i][0], melhores[i][1])
-            
-            pais = []
-            melhores = [[0.0,0.0]]*n_geracoes
-
-            cp = 0
-
-            # Re-Geração Inicial
-            pop = inicializacao(tam_pop, min, max)
-
+            print(melhor)
+            print(funcao(melhor[0], melhor[1]))
+            return melhor, funcao(melhor[0], melhor[1])
 
 if __name__ == '__main__':
     arq = open('res1.csv', 'w')
