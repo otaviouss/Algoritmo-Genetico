@@ -34,7 +34,7 @@ def fitness(pop):
     return av
 
 # Seleção para Reprodução
-def selecao_torneio(pop, t_size, min, max):
+def selecao_torneio(pop, t_size):
     pop_size = len(pop)
     contestant = [[]]*t_size
     best = pop[random.randint(0, pop_size-1)]
@@ -42,13 +42,7 @@ def selecao_torneio(pop, t_size, min, max):
     contestant = best
     for j in range(1, t_size):
         contestant = pop[random.randint(0, pop_size-1)]
-        if(funcao(contestant[0], contestant[1]) < funcao(best[0], best[1]) and 
-            restricao1(contestant[0], contestant[1]) <= 0                  and
-            restricao2(contestant[0], contestant[1]) <= 0                  and
-            restricao1(best[0], best[1]) <= 0                              and 
-            restricao2(best[0], best[1]) <= 0                              and
-            contestant[0] >= min[0] and contestant[0] <= max[0]            and
-            contestant[1] >= min[1] and contestant[1] <= max[1]):
+        if(funcao(contestant[0], contestant[1]) < funcao(best[0], best[1])):
             best = contestant
 
     return best
@@ -63,11 +57,11 @@ def selecao_estacionario(pais, filhos):
     av_filhos = fitness(filhos)
     filhos_ordenados = [x for _, x in sorted(zip(av_filhos, filhos))]
 
-    t70 = math.floor(tam_pop*0.7)
+    t60 = math.floor(tam_pop*0.6)
 
     pop = pais_ordenados.copy()
     f = 0
-    for i in range(t70, tam_pop):
+    for i in range(t60, tam_pop):
         pop[i] = filhos_ordenados[f]
         f += 1
 
@@ -93,12 +87,24 @@ def cruzamento_flat(pais):
 
         filhos.append(filho)
 
+        x = ajustar_ordem(pais[i][0], pais[len(pais)-i-1][0])
+        y = ajustar_ordem(pais[i][1], pais[len(pais)-i-1][1])
+        filho = [random.uniform(x[0], x[1]), random.uniform(y[0], y[1])]
+
+        filhos.append(filho)
+
+        x = ajustar_ordem(pais[i][0], pais[len(pais)-i-1][0])
+        y = ajustar_ordem(pais[i][1], pais[len(pais)-i-1][1])
+        filho = [random.uniform(x[0], x[1]), random.uniform(y[0], y[1])]
+
+        filhos.append(filho)
+
     return filhos
 
 def mutacao_uniforme(pop, min, max):
     sigma = 0.2
     for i in range(len(pop)):
-        if(random.randint(1,5)==1):
+        if(random.randint(1,50) == 1):
             pop[i][0] += sigma*(max[0]-min[0])*(2*random.uniform(0,1)-1)
             pop[i][1] += sigma*(max[1]-min[1])*(2*random.uniform(0,1)-1)
     return pop
@@ -144,35 +150,30 @@ def regras_factibilidade(filhos):
         
     return filhos_escolhidos
 
-def criterio_parada(pais, melhores, min, max):
+def atualiza_melhor(pais, melhor, min, max):
     av_pais = fitness(pais)
     pais_ordenados = [x for _, x in sorted(zip(av_pais, pais))]
 
-    for i in range(len(melhores)):
-        for j in range(len(pais_ordenados)):
-            if(funcao(pais_ordenados[j][0], pais_ordenados[j][1]) < funcao(melhores[i][0], melhores[i][1]) and
-                restricao1(pais_ordenados[j][0], pais_ordenados[j][1])  <= 0                               and
-                restricao2(pais_ordenados[j][0], pais_ordenados[j][1])  <= 0                               and
-                pais_ordenados[j][0] >= min[0] and pais_ordenados[j][0] <= max[0]                          and
-                pais_ordenados[j][1] >= min[1] and pais_ordenados[j][1] <= max[1]):
-                    melhores[i] = pais_ordenados[j]
-                    av_melhores = fitness(melhores.copy())
-                    melhores = [x for _, x in sorted(zip(av_melhores, melhores))]
-                    break
+    for j in range(len(pais_ordenados)):
+        if(funcao(pais_ordenados[j][0], pais_ordenados[j][1]) < funcao(melhor[0], melhor[1]) and 
+            restricao1(pais_ordenados[j][0], pais_ordenados[j][1]) <= 0                      and
+            restricao2(pais_ordenados[j][0], pais_ordenados[j][1]) <= 0                      and
+            pais_ordenados[j][0] >= min[0] and pais_ordenados[j][0] <= max[0]                and
+            pais_ordenados[j][1] >= min[1] and pais_ordenados[j][1] <= max[1]):
+            
+            melhor = pais_ordenados[j]
 
-    return 1
+    return melhor
 
 
 def algoritmo_genetico():
     min = [0,0]
     max = [10,10]
 
-    tam_pop = 200
-    n_geracoes = 100
+    tam_pop = 500
+    n_geracoes = 30 # Número de gerações sem melhoria para parar a execução do método
 
-    pais = []
-    melhores = [[0.0,0.0]]*n_geracoes
-    melhor = []
+    melhor = [0,0]
 
     cp = 0
 
@@ -180,25 +181,32 @@ def algoritmo_genetico():
     pop = inicializacao(tam_pop, min, max)
 
     while True:
+        pais = []
+
         # Seleção para Cruzamento
-        for i in range(tam_pop): pais.append(selecao_torneio(pop, 3, min, max))
+        for i in range(tam_pop): pais.append(selecao_torneio(pop, 3))
 
         # Cruzamento (Gera o dobro de filhos se comparado ao número de pais)
-        filhos = cruzamento_flat(pais.copy())
+        filhos = cruzamento_flat(pais)
 
         # Mutação
-        filhos_mutacao = mutacao_uniforme(filhos.copy(), min, max)
+        filhos = mutacao_uniforme(filhos, min, max)
 
         # Aplicação das Regras de Factibilidade
-        pais = regras_factibilidade(filhos_mutacao.copy())
+        filhos = regras_factibilidade(filhos)
 
-        # Observância dos critérios de parada
-        cp += criterio_parada(pais, melhores, min, max)
+        # Seleção para Sobrevivência
+        pop = selecao_estacionario(pais, filhos)
 
-        if(melhor == [] or funcao(melhor[0], melhor[1]) < funcao(melhores[0][0], melhores[0][1])):
-            melhor = melhores[0]
+        # Atualiza o melhor indivíduo
+        novo_melhor = atualiza_melhor(pop, melhor, min, max)
 
-        # Finalização
+        if(novo_melhor != melhor):
+            melhor = novo_melhor
+            cp = 0
+        else: cp += 1
+
+        # Critério de Parada
         if(cp == n_geracoes):
             print(melhor)
             print(funcao(melhor[0], melhor[1]))
@@ -210,4 +218,3 @@ if __name__ == '__main__':
         sol, res = algoritmo_genetico()
         arq.write(str(sol[0]).replace('.',',')+';'+str(sol[1]).replace('.',',')+';'+str(res).replace('.',',')+'\n')
     arq.close()
-    algoritmo_genetico()
