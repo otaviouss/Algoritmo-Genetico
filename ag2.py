@@ -51,14 +51,14 @@ def retornar_dados_objetivo():
 
     return dados_objetivo
 
-def inicializacao(tam_pop, min, max, dados_objetivo):
+def inicializacao(tam_pop, min, max):
     vi = []
     for i in range(tam_pop):
         montante = 10500 - sum(min)
 
         individuo = min.copy()
         for j in range(40):
-            p_i = random.uniform((max[j] - min[j])*0.6, (max[j] - min[j]))
+            p_i = random.uniform((max[j] - min[j])*0.6, (max[j] - min[j])*0.9)
             if(montante-p_i < 0):
                 individuo[j] += (montante)
                 break
@@ -71,11 +71,10 @@ def inicializacao(tam_pop, min, max, dados_objetivo):
 
 def selecao_torneio(pop, t_size, min, dados_objetivo):
     pop_size = len(pop)
-    best = pop[random.randint(0, pop_size-1)]
+    best = pop[random.randint(0, pop_size-1)].copy()
 
-    contestant = best
     for j in range(1, t_size):
-        contestant = pop[random.randint(0, pop_size-1)]
+        contestant = pop[random.randint(0, pop_size-1)].copy()
         if(calcular_funcao_individuo(contestant, min, dados_objetivo) < calcular_funcao_individuo(best, min, dados_objetivo)):
             best = contestant
 
@@ -88,30 +87,33 @@ def cruzamento_simples(pais):
     filhos = []
 
     # Número ímpar vai dar um número diferente de filhos
-    for i in range(math.floor(len(pais)/2)):
+    for i in range(0, len(pais)-1, 2):
 
         filho1 = pais[i].copy()
         filho2 = pais[i].copy()
         filho3 = pais[i].copy()
         filho4 = pais[i].copy()
 
-        ale1 = random.randint(0, 40)
-        for j in range(ale1):
-            filho1[j] = pais[len(pais)-i-1][j]
-        
-        for j in range(ale1, 40):
-            filho2[j] = pais[len(pais)-i-1][j]
- 
-        ale2 = random.randint(0, 40)
-        for j in range(ale2):
-            filho3[j] = pais[len(pais)-i-1][j]
-        
-        for j in range(ale2, 40):
-            filho4[j] = pais[len(pais)-i-1][j]
+        ale1 = random.randint(1, 39)
+        for j in range(0, ale1):
+            filho1[j] = pais[i+1][j]
 
         filhos.append(filho1)
+
+        for j in range(ale1, 40):
+            filho2[j] = pais[i+1][j]
+ 
         filhos.append(filho2)
+
+        ale2 = random.randint(1, 39)
+        for j in range(0, ale2):
+            filho3[j] = pais[i+1][j]
+
         filhos.append(filho3)
+
+        for j in range(ale2, 40):
+            filho4[j] = pais[i+1][j]
+
         filhos.append(filho4)
 
     return filhos
@@ -153,12 +155,23 @@ def cruzamento_flat(pais):
     return filhos
 
 def mutacao_uniforme(pop, min, max):
-    sigma = 2
+    sigma = 0.01
     for i in range(len(pop)):
         for j in range(40):
-            if(random.randint(1,50) == 1):
+            if(random.randint(1,2) == 1):
                 pop[i][j] += sigma*(max[j]-min[j])*(2*random.uniform(0,1)-1)
     
+    return pop
+
+def mutacao_coerente(pop, cp, max):
+
+    for i in range(len(pop)):
+        for j in range(40):
+            if(random.randint(1,20) == 1):
+                val = random.uniform(0, round(max[j]-pop[i][j]))
+                pop[i][j] += val
+                pop[i][random.randint(0,39)] -= val 
+
     return pop
 
 def restricao(somatorio_p_i):
@@ -169,8 +182,8 @@ def regras_factibilidade(filhos, min, dados_objetivo):
     filhos_escolhidos = []
 
     for i in range(0, len(filhos), 2):
-        ind1 = filhos[i]
-        ind2 = filhos[i+1]
+        ind1 = filhos[i].copy()
+        ind2 = filhos[i+1].copy()
 
         fit1 = calcular_funcao_individuo(ind1, min, dados_objetivo)
         fit2 = calcular_funcao_individuo(ind2, min, dados_objetivo)
@@ -209,77 +222,84 @@ def fitness(pop, min, dados_objetivo):
     return av
 
 # Seleção para Sobrevivência
-def selecao(pais, filhos):
+def selecao(pais, filhos, min, max):
     tam_pop = len(pais)
 
     pop = pais.copy()
 
     for i in range(len(filhos)):
         if(restricao(sum(filhos[i])) == 0):
-            pop[random.randint(0, tam_pop-1)] = filhos[i]
+            b = 0
+            # Testa se todas as variáveis estão dentro dos limites permitidos
+            for j in range(40):
+                if(filhos[i][j] < min[j] or filhos[i][j] > max[j]):
+                    b = 1
+                    break
+            if(b==0): pop[random.randint(0, tam_pop-1)] = filhos[i].copy()
 
     return pop
 
 def atualiza_melhor(pop, melhor, min, dados_objetivo):
+    novo_melhor = melhor.copy()
 
     for j in range(len(pop)):
-        print("P: ", calcular_funcao_individuo(pop[j], min, dados_objetivo))
-        
-        if(restricao(sum(pop[j])) == 0 and
-            calcular_funcao_individuo(pop[j], min, dados_objetivo) < calcular_funcao_individuo(melhor, min, dados_objetivo)):
-            melhor = pop[j]
-            print("M: ", calcular_funcao_individuo(melhor, min, dados_objetivo))
+        if(round(sum(pop[j])) == 10500 and
+            calcular_funcao_individuo(pop[j], min, dados_objetivo) < calcular_funcao_individuo(novo_melhor, min, dados_objetivo)):
+            novo_melhor = pop[j].copy()
 
-    return melhor
+    return novo_melhor
 
 def algoritmo_genetico():
     min, max = retornar_intervalos()
     dados_objetivo = retornar_dados_objetivo()
 
-    tam_pop = 10
-    n_geracoes = 20 # Número de gerações sem melhoria para parar a execução do método
+    tam_pop = 50
+    n_geracoes = 30 # Número de gerações sem melhoria para parar a execução do método
 
     cp = 0
-    
+
     # Geração Inicial
-    pop = inicializacao(tam_pop, min, max, dados_objetivo)
+    pop = inicializacao(tam_pop, min, max)
 
     melhor = pop[random.randint(0, len(pop)-1)]
 
-    print("Checking: ", calcular_funcao_individuo(melhor, min, dados_objetivo))
-    print("SMI: ", sum(melhor))
-
+    print("Running...")
     while True:
         pais = []
 
         # Seleção para Cruzamento
-        for i in range(tam_pop): pais.append(selecao_torneio(pop, 2, min, dados_objetivo))
+        for i in range(tam_pop): pais.append(selecao_torneio(pop, 10, min, dados_objetivo))
 
         # Cruzamento (Gera o dobro de filhos se comparado ao número de pais)
-        filhos = cruzamento_flat(pais.copy())
+        filhos = cruzamento_simples(pais.copy())
 
         # Mutação
-        filhos = mutacao_uniforme(filhos.copy(), min, max)
+        filhos = mutacao_coerente(filhos.copy(), cp, max)
 
         filhos = regras_factibilidade(filhos.copy(), min, dados_objetivo)
 
         # Seleção para Sobrevivência
-        pop = selecao(pop.copy(), filhos.copy())
+        pop = selecao(pop.copy(), filhos.copy(), min, max)
 
         # Atualiza o melhor indivíduo
         novo_melhor = atualiza_melhor(pop.copy(), melhor, min, dados_objetivo)
-        print("Valor_NM: ",calcular_funcao_individuo(novo_melhor, min, dados_objetivo),  " Soma Pi: ", sum(novo_melhor), " Geração: ", cp)
         if(novo_melhor != melhor):
+            #print("Valor_NM: ",calcular_funcao_individuo(novo_melhor, min, dados_objetivo),  " Soma Pi: ", sum(novo_melhor), " Geração: ", cp)
             melhor = novo_melhor
-            cp +=1
+            cp = 0
         else: cp += 1
 
         # Critério de Parada
         if(cp == n_geracoes):
             print(melhor)
             print(calcular_funcao_individuo(melhor, min, dados_objetivo), " ", sum(melhor))
-            break
-            #return melhor, funcao(melhor[0], melhor[1])
+            return melhor, calcular_funcao_individuo(melhor, min, dados_objetivo)
 
 if __name__ == '__main__':
-    algoritmo_genetico()
+    arq = open('res2.csv', 'w')
+    for i in range(30):
+        sol, res = algoritmo_genetico()
+        for i in range(40):
+            arq.write(str(sol[i]).replace('.',',')+';')
+        arq.write(str(res).replace('.',',')+'\n')
+    arq.close()
