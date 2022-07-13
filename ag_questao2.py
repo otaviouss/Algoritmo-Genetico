@@ -116,6 +116,42 @@ def cruzamento_simples(pais):
 
     return filhos
 
+def cruzamento_flat(pais):
+    filhos = []
+
+    # Número ímpar vai dar um número diferente de filhos
+    for i in range(math.floor(len(pais)/2)):
+
+        filho = []
+        for j in range(40):
+            p_i = ajustar_ordem(pais[i][j], pais[len(pais)-i-1][j])
+            filho.append( random.uniform(p_i[0], p_i[1]) )
+ 
+        filhos.append(filho)
+
+        filho = []
+        for j in range(40):
+            p_i = ajustar_ordem(pais[i][j], pais[len(pais)-i-1][j])
+            filho.append( random.uniform(p_i[0], p_i[1]) )
+ 
+        filhos.append(filho)
+
+        filho = []
+        for j in range(40):
+            p_i = ajustar_ordem(pais[i][j], pais[len(pais)-i-1][j])
+            filho.append( random.uniform(p_i[0], p_i[1]) )
+ 
+        filhos.append(filho)
+
+        filho = []
+        for j in range(40):
+            p_i = ajustar_ordem(pais[i][j], pais[len(pais)-i-1][j])
+            filho.append( random.uniform(p_i[0], p_i[1]) )
+ 
+        filhos.append(filho)
+
+    return filhos
+
 def mutacao_uniforme(pop, min, max):
     sigma = 2
     for i in range(len(pop)):
@@ -220,7 +256,7 @@ def algoritmo_genetico():
         for i in range(tam_pop): pais.append(selecao_torneio(pop, 2, min, dados_objetivo))
 
         # Cruzamento (Gera o dobro de filhos se comparado ao número de pais)
-        filhos = cruzamento_simples(pais.copy())
+        filhos = cruzamento_flat(pais.copy())
 
         # Mutação
         filhos = mutacao_uniforme(filhos.copy(), min, max)
